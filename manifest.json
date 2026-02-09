@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "AI 提示詞助手",
+  "version": "1.0",
+  "description": "提升 AI 溝通效率的文字片段工具，支援自定義外觀與指令庫管理",
+  "permissions": ["storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {},
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
