@@ -62,8 +62,33 @@ function insertText(field) {
   const content = filteredSnippets[selectedIndex].text;
   const val = field.innerText || field.value;
   const lastSlashIndex = val.lastIndexOf('/');
-  const newVal = val.slice(0, lastSlashIndex) + content;
-  if (field.isContentEditable) field.innerText = newVal; else field.value = newVal;
+  
+  // 1. 準備要插入的文字內容：提示詞 + 兩個換行符號
+  const suffix = "\n\n"; 
+  const textToInsert = content + suffix;
+  
+  // 2. 移除原本的 "/" 指令並插入新文字
+  const prefix = val.slice(0, lastSlashIndex);
+  const fullText = prefix + textToInsert;
+
+  if (field.isContentEditable) {
+    field.innerText = fullText;
+    
+    // 3. 核心修正：將游標移至末尾
+    field.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(field);
+    range.collapse(false); // false 表示折疊至範圍的末端
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else {
+    field.value = fullText;
+    field.focus();
+    field.selectionStart = field.selectionEnd = fullText.length;
+  }
+
+  // 4. 觸發輸入事件以確保 Gemini 的 UI 偵測到內容更動
   field.dispatchEvent(new Event('input', { bubbles: true }));
   removeMenu();
 }

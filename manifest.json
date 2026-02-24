@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI 提示詞助手",
-  "version": "1.0",
+  "version": "1.1",
   "description": "提升 AI 溝通效率的文字片段工具，支援自定義外觀與指令庫管理",
   "permissions": ["storage"],
   "background": {
