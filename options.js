@@ -21,12 +21,12 @@ function init() {
   });
 }
 
-// 側邊欄縮合
+// 側邊欄縮合邏輯
 document.getElementById('prompt-menu-toggle').onclick = () => {
   document.getElementById('prompt-group-wrapper').classList.toggle('collapsed');
 };
 
-// 導覽切換
+// 導覽切換邏輯
 document.querySelectorAll('.nav-item').forEach(item => {
   item.onclick = function() {
     if (this.id === 'prompt-menu-toggle') return;
@@ -49,6 +49,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
   };
 });
 
+// 表格渲染邏輯
 function renderTable() {
   const tbody = document.getElementById('data-list-body');
   const thead = document.getElementById('table-head');
@@ -66,13 +67,16 @@ function renderTable() {
       ${conf.hasShortcut ? `<td><code>${item.shortcut ? '/' + item.shortcut : ''}</code></td>` : ''}
       <td><span class="text-truncate">${item.text}</span></td>
       <td style="text-align:right;">
-        <button class="btn-gray-blue" id="edit-${index}">編輯</button>
-        <button class="btn-gray-red" id="del-${index}">刪除</button>
+        <button class="btn-gray-blue btn-edit">編輯</button>
+        <button class="btn-gray-red btn-del">刪除</button>
       </td>
     `;
+    
+    // 安全地綁定事件 (替代 inline onclick)
+    tr.querySelector('.btn-edit').onclick = () => openEditor(index);
+    tr.querySelector('.btn-del').onclick = () => deleteItem(index);
+    
     tbody.appendChild(tr);
-    document.getElementById(`edit-${index}`).onclick = () => openEditor(index);
-    document.getElementById(`del-${index}`).onclick = () => deleteItem(index);
   });
 }
 
@@ -86,6 +90,7 @@ function openEditor(index = -1) {
   showView('editor');
 }
 
+// 儲存提示詞
 document.getElementById('btn-save').onclick = () => {
   const label = document.getElementById('edit-label').value.trim();
   const text = document.getElementById('edit-text').value.trim();
@@ -117,6 +122,7 @@ function showView(view) {
   document.getElementById('group-shortcut').style.display = (!isList && CONFIG[currentType].hasShortcut) ? 'block' : 'none';
 }
 
+// 初始化按鈕事件
 document.getElementById('btn-new').onclick = () => openEditor(-1);
 document.getElementById('btn-back').onclick = () => showView('list');
 
@@ -132,6 +138,7 @@ function updateSandbox() {
   const activeItem = document.getElementById('sb-active');
   menu.style.backgroundColor = bg;
   activeItem.style.backgroundColor = active;
+  activeItem.style.color = '#ffffff';
   document.querySelectorAll('.sb-t').forEach(e => e.style.fontSize = fSize);
   document.querySelectorAll('.sb-s').forEach(e => e.style.fontSize = sSize);
 }
