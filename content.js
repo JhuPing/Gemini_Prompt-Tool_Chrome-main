@@ -53,7 +53,7 @@ function renderItems() {
   });
 }
 
-// --- 2. 核心邏輯：區分「選單 Enter」與「送出 Enter」 ---
+// --- 2. 核心邏輯：修正重複內容問題 ---
 document.addEventListener('keydown', (e) => {
   if (menu) {
     if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = (selectedIndex + 1) % filteredSnippets.length; renderItems(); }
@@ -67,31 +67,34 @@ document.addEventListener('keydown', (e) => {
     return;
   } 
 
-  // 當按下 Enter 且目前有掛載提示詞標籤時
   if (e.key === 'Enter' && !e.shiftKey && activePromptText) {
     const field = e.target;
     if (field.isContentEditable) {
       e.preventDefault();
       e.stopImmediatePropagation();
       
+      // 先獲取乾淨的使用者輸入（去掉前後空白）
       const userInput = field.innerText.trim();
       
-      // --- 核心優化：建立具備區塊感的合併內容 ---
-      // 使用 【標題】 讓 AI 更容易區分指令與內容
+      // 核心修正：先徹底清空輸入框，防止舊內容殘留
+      field.innerText = "";
+      
+      // 重新組合內容：區塊標題化
       const finalMessage = `【身份與提示詞】\n${activePromptText}\n\n【處理內容】\n${userInput}`;
       
-      // 強制重設內容，確保不會有重複文字出現
+      // 填入格式化後的內容
       field.innerText = finalMessage;
 
-      // 模擬點擊傳送按鈕
+      // 觸發送出按鈕
       setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
-        if (sendBtn) sendBtn.click();
-        
-        // 發送後完整清空，避免影響下一則訊息
-        activePromptText = "";
-        activePromptLabel = "";
-        updateTagUI();
+        if (sendBtn) {
+          sendBtn.click();
+          // 發送成功後才清空 Tag
+          activePromptText = "";
+          activePromptLabel = "";
+          updateTagUI();
+        }
       }, 50);
     }
   }
@@ -128,10 +131,8 @@ function insertText(field) {
   const lastSlashIndex = val.lastIndexOf('/');
   const prefix = val.slice(0, lastSlashIndex);
 
-  // 僅保留斜線前的原始文字
   field.innerText = prefix;
   
-  // 保持游標位置正確
   field.focus();
   const range = document.createRange();
   const sel = window.getSelection();
@@ -166,7 +167,7 @@ function updateTagUI() {
 
   if (activePromptLabel && tagWrapper) {
     tagWrapper.style.display = 'flex';
-    document.getElementById('tag-label').innerText = `已掛載指令：${activePromptLabel}`;
+    document.getElementById('tag-label').innerText = `指令掛載：${activePromptLabel}`;
   } else if (tagWrapper) {
     tagWrapper.style.display = 'none';
   }
