@@ -160,7 +160,7 @@ function clearSlot(type) {
 
 function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
 
-// --- 4. 關鍵修正：送出後不清除狀態 ---
+// --- 4. 訊息發送邏輯 (調整為您要求的精簡格式) ---
 document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (menu) {
@@ -178,15 +178,20 @@ document.addEventListener('keydown', (e) => {
       if (!userInput) return;
       e.preventDefault(); e.stopImmediatePropagation();
       
-      const finalMessage = `【身份】\n${activeIdentity || "（未指定）"}\n\n【指令】\n${activePromptText || "（未指定）"}\n\n【風格】\n${activeStyle || "（未指定）"}\n\n【處理內容】\n${userInput}`;
+      // 根據您的需求更新組合格式
+      const finalMessage = `身份：${activeIdentity || "（未指定）"}
+指令：${activePromptText || "（未指定）"}
+回覆風格：${activeStyle || "（未指定）"}
+------------------------------
+要處理的內容：
+${userInput}`;
+
       field.innerText = finalMessage;
       
       setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
         if (sendBtn) {
           sendBtn.click();
-          // 【修正點】：這裡不再將 activePromptText 與 activePromptLabel 設為空值
-          // 這樣「指令」標籤就會像「身份」和「風格」一樣維持選中狀態
           updateTagUI(); 
         }
       }, 50);
