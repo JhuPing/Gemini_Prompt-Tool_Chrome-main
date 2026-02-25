@@ -53,8 +53,13 @@ function renderItems() {
   });
 }
 
-// --- 2. 核心邏輯：修正重複內容問題 ---
+// --- 2. 核心邏輯：加入 IME 輸入法判定 ---
 document.addEventListener('keydown', (e) => {
+  // 核心修正：如果使用者正在「選字中」(IME composing)，則不執行我們的 Enter 邏輯
+  if (e.isComposing || e.keyCode === 229) {
+    return;
+  }
+
   if (menu) {
     if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = (selectedIndex + 1) % filteredSnippets.length; renderItems(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = (selectedIndex - 1 + filteredSnippets.length) % filteredSnippets.length; renderItems(); }
@@ -67,30 +72,24 @@ document.addEventListener('keydown', (e) => {
     return;
   } 
 
+  // 只有在非選字狀態下的 Enter 才會觸發合併送出
   if (e.key === 'Enter' && !e.shiftKey && activePromptText) {
     const field = e.target;
     if (field.isContentEditable) {
       e.preventDefault();
       e.stopImmediatePropagation();
       
-      // 先獲取乾淨的使用者輸入（去掉前後空白）
       const userInput = field.innerText.trim();
       
-      // 核心修正：先徹底清空輸入框，防止舊內容殘留
+      // 先清空，再填入結構化內容
       field.innerText = "";
-      
-      // 重新組合內容：區塊標題化
       const finalMessage = `【身份與提示詞】\n${activePromptText}\n\n【處理內容】\n${userInput}`;
-      
-      // 填入格式化後的內容
       field.innerText = finalMessage;
 
-      // 觸發送出按鈕
       setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
         if (sendBtn) {
           sendBtn.click();
-          // 發送成功後才清空 Tag
           activePromptText = "";
           activePromptLabel = "";
           updateTagUI();
