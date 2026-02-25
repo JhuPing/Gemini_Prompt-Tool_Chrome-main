@@ -55,20 +55,19 @@ function renderItems() {
 
 // --- 2. 核心邏輯：區分「選單 Enter」與「送出 Enter」 ---
 document.addEventListener('keydown', (e) => {
-  // 情況 A：選單開啟時，按下 Enter 僅執行選取
   if (menu) {
     if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = (selectedIndex + 1) % filteredSnippets.length; renderItems(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = (selectedIndex - 1 + filteredSnippets.length) % filteredSnippets.length; renderItems(); }
     else if (e.key === 'Enter') { 
       e.preventDefault(); 
-      e.stopImmediatePropagation(); // 強制停止事件傳遞，防止觸發 Gemini 送出
+      e.stopImmediatePropagation();
       insertText(document.activeElement); 
     }
     else if (e.key === 'Escape') { removeMenu(); }
-    return; // 選單狀態下處理完畢，直接返回
+    return;
   } 
 
-  // 情況 B：平常輸入時，按下 Enter 進行合併送出
+  // 當按下 Enter 且目前有掛載提示詞標籤時
   if (e.key === 'Enter' && !e.shiftKey && activePromptText) {
     const field = e.target;
     if (field.isContentEditable) {
@@ -76,18 +75,20 @@ document.addEventListener('keydown', (e) => {
       e.stopImmediatePropagation();
       
       const userInput = field.innerText.trim();
-      // 合併邏輯：提示詞在前，使用者內容在後
-      const finalMessage = `${activePromptText}\n\n${userInput}`;
       
-      // 清空並重新填入
+      // --- 核心優化：建立具備區塊感的合併內容 ---
+      // 使用 【標題】 讓 AI 更容易區分指令與內容
+      const finalMessage = `【身份與提示詞】\n${activePromptText}\n\n【處理內容】\n${userInput}`;
+      
+      // 強制重設內容，確保不會有重複文字出現
       field.innerText = finalMessage;
 
-      // 觸發送出按鈕
+      // 模擬點擊傳送按鈕
       setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
         if (sendBtn) sendBtn.click();
         
-        // 送出後清空狀態
+        // 發送後完整清空，避免影響下一則訊息
         activePromptText = "";
         activePromptLabel = "";
         updateTagUI();
@@ -118,7 +119,6 @@ function showMenuOnTop(parent) {
   document.body.appendChild(menu);
 }
 
-// --- 3. 修改 insertText：只顯示 Tag，不填入文字 ---
 function insertText(field) {
   const selected = filteredSnippets[selectedIndex];
   activePromptText = selected.text;
@@ -128,10 +128,10 @@ function insertText(field) {
   const lastSlashIndex = val.lastIndexOf('/');
   const prefix = val.slice(0, lastSlashIndex);
 
-  // 僅保留斜線前的內容，移除指令文字
+  // 僅保留斜線前的原始文字
   field.innerText = prefix;
   
-  // 修正：移動游標至末尾
+  // 保持游標位置正確
   field.focus();
   const range = document.createRange();
   const sel = window.getSelection();
