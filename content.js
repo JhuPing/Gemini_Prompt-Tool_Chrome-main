@@ -63,11 +63,41 @@ document.addEventListener('keydown', (e) => {
   if (menu) {
     if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = (selectedIndex + 1) % filteredSnippets.length; renderItems(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = (selectedIndex - 1 + filteredSnippets.length) % filteredSnippets.length; renderItems(); }
-    else if (e.key === 'Enter') { 
-      e.preventDefault(); 
-      e.stopPropagation(); 
-      insertText(document.activeElement); 
+    // ... 在 keydown 事件監聽器內 ...
+else if (e.key === 'Enter' && !e.shiftKey && activePromptText) {
+    const field = e.target;
+    if (field.isContentEditable || field.tagName === 'TEXTAREA') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // 修正點：獲取使用者輸入時，確保不包含原本觸發選單的殘留字元
+        let userInput = field.innerText || field.value;
+        
+        // 1. 建立最終訊息：提示詞在前，使用者輸入在後
+        // 如果你希望「橘子」不要出現在最前面，確保合併順序正確
+        const finalMessage = `${activePromptText}\n\n${userInput}`;
+        
+        // 2. 清空輸入框後再填入，避免重複出現
+        if (field.isContentEditable) {
+            field.innerText = ""; // 先清空
+            field.innerText = finalMessage;
+        } else {
+            field.value = ""; // 先清空
+            field.value = finalMessage;
+        }
+
+        // 3. 觸發送出
+        setTimeout(() => {
+            const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
+            if (sendBtn) sendBtn.click();
+            
+            // 4. 送出後務必完整清空狀態與 UI
+            activePromptText = "";
+            activePromptLabel = "";
+            updateTagUI();
+        }, 50);
     }
+}
     else if (e.key === 'Escape') { removeMenu(); }
   } 
   // --- 新增：攔截送出動作並合併訊息 ---
