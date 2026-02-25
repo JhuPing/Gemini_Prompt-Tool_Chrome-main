@@ -15,43 +15,43 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; display: flex; height: 100vh; background: var(--bg-color); color: var(--text-main); }
 
-    /* === 以下區塊是處理：側邊導覽列與子選單樣式 (恢復原始結構) === */
+    /* === 以下區塊是處理：側邊導覽列與子選單樣式 === */
     #sidebar { width: 280px; background: var(--sidebar-color); color: #fff; padding: 30px 0; flex-shrink: 0; box-shadow: 4px 0 15px rgba(0,0,0,0.1); }
     .brand { padding: 0 30px 40px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 25px; }
     .nav-item { padding: 16px 30px; cursor: pointer; color: #bdc1c6; transition: 0.3s; display: flex; align-items: center; font-size: 15px; justify-content: space-between; }
     .nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
     .nav-item.active { background: rgba(66, 133, 244, 0.1); color: var(--primary-color); border-left: 5px solid var(--primary-color); font-weight: bold; }
 
-    /* 處理子選單縮合邏輯樣式 */
+    /* 子選單縮合邏輯樣式 */
     .sub-nav-container { background: rgba(0, 0, 0, 0.2); overflow: hidden; transition: max-height 0.3s ease-in-out; }
     .sub-item { padding-left: 50px; font-size: 14px; justify-content: flex-start; }
     .arrow { font-size: 10px; transition: transform 0.3s; }
     .collapsed .arrow { transform: rotate(-90deg); }
     .collapsed .sub-nav-container { max-height: 0 !important; }
 
-    /* === 以下區塊是處理：主內容區域樣式 === */
+    /* === 以下區塊是處理：主內容區域與卡片樣式 === */
     #main-content { flex: 1; overflow-y: auto; padding: 50px 60px; }
     .section { display: none; opacity: 0; transform: translateY(10px); transition: all 0.4s ease; }
     .section.active { display: block; opacity: 1; transform: translateY(0); }
     .card { background: white; padding: 45px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    h2 { font-size: 24px; margin-bottom: 8px; }
 
-    /* === 以下區塊是處理：表格與表單輸入樣式 === */
+    /* === 以下區塊是處理：表格、輸入框與按鈕樣式 === */
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th { text-transform: uppercase; font-size: 13px; color: #70757a; padding: 15px 12px; border-bottom: 2px solid #f1f3f4; text-align: left; }
     td { padding: 20px 12px; border-bottom: 1px solid #f1f3f4; font-size: 14px; }
     .form-input { width: 100%; padding: 14px 18px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 15px; margin-top: 10px; outline: none; }
     .text-truncate { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-sub); }
+    button { padding: 10px 24px; border-radius: 8px; cursor: pointer; border: none; font-weight: 600; font-size: 14px; transition: 0.2s; }
+    .btn-main { background: var(--primary-color); color: white; }
+    .btn-gray-blue { background: #f1f3f4; color: var(--primary-color); }
+    .btn-gray-red { background: #f1f3f4; color: #d93025; }
 
     /* === 以下區塊是處理：模擬預覽樣式 (Gemini Tag & Menu) === */
     .sb-item-tag { display: flex; align-items: center; justify-content: space-between; width: 160px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px dashed #dadce0; font-size: 13px; background: #fff; color: #5f6368; margin-bottom: 12px; }
     .sb-item-tag.active { border-style: solid; font-weight: bold; }
     #sandbox-menu { width: 100%; max-width: 320px; border-radius: 12px; border: 1px solid #dadce0; overflow: hidden; background: #fff; }
     .sb-item { padding: 14px 18px; border-bottom: 1px solid #f1f3f4; }
-
-    button { padding: 10px 24px; border-radius: 8px; cursor: pointer; border: none; font-weight: 600; font-size: 14px; transition: 0.2s; }
-    .btn-main { background: var(--primary-color); color: white; }
-    .btn-gray-blue { background: #f1f3f4; color: var(--primary-color); }
-    .btn-gray-red { background: #f1f3f4; color: #d93025; }
   </style>
 </head>
 <body>
@@ -71,6 +71,7 @@
     </div>
     
     <div class="nav-item" data-target="appearance-section">外觀設定</div>
+    <div class="nav-item" data-target="about-section">關於作者</div>
   </div>
 
   <div id="main-content">
@@ -133,6 +134,17 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="about-section" class="section">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:30px; margin-bottom:40px; background: linear-gradient(to right, #f8f9fa, #fff); padding: 25px; border-radius: 12px;">
+          <div style="width:85px; height:85px; background: var(--primary-color); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:800;">J</div>
+          <div><h2>JPing</h2><p style="color: var(--primary-color); font-weight: 600; font-size: 14px;">AI 提示詞助手創作者</p></div>
+        </div>
+        <p style="line-height:1.9; font-size: 16px; font-weight: 500; margin-bottom: 24px;">希望能透過一些小工具的開發，解決平常工作上重複的操作。</p>
+        <p style="line-height:1.9; font-size: 15px; color: var(--text-sub);">我並沒有工程背景，但我相信想法不應受限於技術。透過與 AI 進行 <b>Vibe Coding</b>，將腦中的想法一步步實踐。</p>
       </div>
     </div>
   </div>
