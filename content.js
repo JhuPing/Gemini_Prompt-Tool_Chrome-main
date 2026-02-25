@@ -11,7 +11,7 @@ let activePromptText = "";
 let activeStyle = "";
 let activeStyleLabel = "";
 
-// --- 1. 注入 CSS (確保層級最高) ---
+// --- 1. 注入 CSS (新增重置按鈕樣式) ---
 const style = document.createElement('style');
 style.innerHTML = `
   .ai-helper-container { display: flex; gap: 10px; margin: 12px; flex-wrap: wrap; align-items: center; z-index: 10; }
@@ -22,6 +22,16 @@ style.innerHTML = `
     box-sizing: border-box; transition: all 0.2s; position: relative;
   }
   .prompt-tag-slot.active { border-style: solid; background: #e8f0fe; color: #1a73e8; border-color: #1a73e8; font-weight: bold; }
+  
+  /* 清除記憶按鈕樣式 */
+  .reset-memory-btn {
+    display: flex; align-items: center; justify-content: center;
+    height: 36px; padding: 0 15px; border-radius: 10px;
+    background: #f1f3f4; color: #3c4043; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid #dadce0; transition: all 0.2s;
+  }
+  .reset-memory-btn:hover { background: #e8e8e8; border-color: #3c4043; }
+
   .tag-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: left; }
   .tag-close { cursor: pointer; margin-left: 6px; font-size: 16px; opacity: 0.7; }
   .tag-close:hover { opacity: 1; color: #d93025; }
@@ -41,22 +51,18 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- 2. 強化 UI 渲染 (解決 Tag 不見的問題) ---
+// --- 2. 渲染 UI (新增重置按鈕) ---
 function updateTagUI() {
-  // 重新定位輸入框，Gemini 的輸入框通常在 contenteditable 內
   const inputArea = document.querySelector('div[contenteditable="true"]');
   if (!inputArea) return;
   
   let container = document.getElementById('ai-helper-slots');
-  
-  // 如果容器不見了，或者位置跑掉了，重新插入
   if (!container) {
     container = document.createElement('div');
     container.id = 'ai-helper-slots';
     container.className = 'ai-helper-container';
   }
   
-  // 關鍵：確保它始終位於輸入框最接近的父容器頂部
   const targetParent = inputArea.closest('.input-area-container') || inputArea.parentElement;
   if (container.parentElement !== targetParent) {
     targetParent.prepend(container);
@@ -68,13 +74,19 @@ function updateTagUI() {
     { key: 'styles', label: '風格', val: activeStyle, display: activeStyleLabel ? `風格：${activeStyleLabel}` : '設定風格' }
   ];
   
-  container.innerHTML = slots.map(s => `
+  let html = slots.map(s => `
     <div class="prompt-tag-slot ${s.val ? 'active' : ''}" data-type="${s.key}">
       <span class="tag-text">${s.display}</span>
       ${s.val ? `<span class="tag-close" data-clear="${s.key}">✕</span>` : ''}
     </div>
   `).join('');
 
+  // 插入重置按鈕
+  html += `<div class="reset-memory-btn" id="btn-reset-gemini">清除 Gemini 記憶</div>`;
+  
+  container.innerHTML = html;
+
+  // 綁定標籤事件
   container.querySelectorAll('.prompt-tag-slot').forEach(el => {
     el.onclick = (e) => {
       const clearKey = e.target.getAttribute('data-clear');
@@ -82,9 +94,34 @@ function updateTagUI() {
       else { triggerSearchMenu(el.getAttribute('data-type'), el); }
     };
   });
+
+  // 綁定重置按鈕事件
+  const resetBtn = document.getElementById('btn-reset-gemini');
+  if (resetBtn) {
+    resetBtn.onclick = () => resetGeminiContext();
+  }
 }
 
-// --- 3. 選單邏輯與搜尋 ---
+// --- 3. 重置 Gemini 上下文邏輯 ---
+function resetGeminiContext() {
+  const inputArea = document.querySelector('div[contenteditable="true"]');
+  if (!inputArea) return;
+
+  const resetMsg = `### 任務重置 ###
+請清除目前的上下文（Context）緩存。接下來我將提供新的主題，請僅根據新提供的資料進行回覆，嚴禁受前文干擾。`;
+
+  inputArea.innerText = resetMsg;
+  
+  setTimeout(() => {
+    const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
+    if (sendBtn) {
+      sendBtn.click();
+    }
+  }, 100);
+}
+
+// --- 後方選單與發送邏輯維持不變 ---
+
 function triggerSearchMenu(type, targetEl) {
   currentMenuType = type;
   chrome.storage.local.get([type], (data) => {
@@ -146,7 +183,6 @@ function clearSlot(type) {
 
 function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
 
-// --- 4. 訊息發送邏輯 (極致緊湊版) ---
 document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (menu) {
@@ -164,7 +200,6 @@ document.addEventListener('keydown', (e) => {
       if (!userInput) return;
       e.preventDefault(); e.stopImmediatePropagation();
       
-      // 極致緊湊組合，無多餘換行
       const finalMessage = `身份：${activeIdentity || "未指定"}
 指令：${activePromptText || "未指定"}
 風格：${activeStyle || "未指定"}
@@ -188,5 +223,4 @@ document.addEventListener('click', (e) => {
   if (menu && !menu.contains(e.target) && !e.target.closest('.prompt-tag-slot')) removeMenu();
 });
 
-// 每 1 秒強力檢查一次 UI，防止被 Gemini 的框架刷新掉
 setInterval(updateTagUI, 1000);
