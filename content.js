@@ -5,13 +5,13 @@ let filteredSnippets = [];
 let currentMenuType = 'events';
 
 let activeIdentity = "";
-let activeIdentityLabel = ""; // 新增：紀錄名稱
+let activeIdentityLabel = ""; 
 let activePromptLabel = "";
 let activePromptText = "";
 let activeStyle = "";
-let activeStyleLabel = "";    // 新增：紀錄名稱
+let activeStyleLabel = "";
 
-// --- 1. 注入 CSS (優化 Tag 寬度與截斷) ---
+// --- 1. 注入 CSS (固定 Tag 寬度與文字截斷) ---
 const style = document.createElement('style');
 style.innerHTML = `
   .ai-helper-container { display: flex; gap: 10px; margin: 12px; flex-wrap: wrap; align-items: center; }
@@ -19,17 +19,18 @@ style.innerHTML = `
     display: flex; align-items: center; justify-content: space-between;
     width: 160px; height: 36px; padding: 0 12px; border-radius: 10px;
     border: 1.5px dashed #dadce0; font-size: 13px; cursor: pointer; background: #fff; color: #5f6368;
-    box-sizing: border-box; transition: all 0.2s;
+    box-sizing: border-box; transition: all 0.2s; position: relative;
   }
   .prompt-tag-slot.active { border-style: solid; background: #e8f0fe; color: #1a73e8; border-color: #1a73e8; font-weight: bold; }
   .tag-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: left; }
   .tag-close { cursor: pointer; margin-left: 6px; font-size: 16px; opacity: 0.7; }
   .tag-close:hover { opacity: 1; color: #d93025; }
   
-  /* 搜尋選單樣式修正 */
+  /* 搜尋選單樣式修正：向上彈出定位 */
   .ai-search-menu {
-    position: fixed; border: 1px solid #dadce0; z-index: 999999 !important; width: 320px; 
-    background: #fff; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.2); overflow: hidden;
+    position: fixed; border: 1px solid #dadce0; z-index: 1000000 !important; width: 320px; 
+    background: #fff; border-radius: 12px; box-shadow: 0 -8px 30px rgba(0,0,0,0.2); overflow: hidden;
+    display: flex; flex-direction: column;
   }
   .menu-search-box { padding: 12px; border-bottom: 1px solid #f1f3f4; background: #f8f9fa; }
   .menu-search-input {
@@ -37,7 +38,7 @@ style.innerHTML = `
     font-size: 14px; outline: none; box-sizing: border-box;
   }
   .menu-search-input:focus { border-color: #4285f4; }
-  .menu-list-container { max-height: 280px; overflow-y: auto; }
+  .menu-list-container { max-height: 250px; overflow-y: auto; }
   .menu-item { padding: 14px 18px; cursor: pointer; border-bottom: 1px solid #f1f3f4; transition: background 0.2s; }
   .menu-item.selected { background-color: #f1f3f4; }
   .menu-item-label { font-weight: bold; font-size: 14px; color: #1a73e8; margin-bottom: 4px; }
@@ -45,24 +46,27 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- 2. UI 渲染 (槽位修正) ---
+// --- 2. UI 渲染 ---
 function updateTagUI() {
   const inputArea = document.querySelector('div[contenteditable="true"]');
   if (!inputArea) return;
+  
   let container = document.getElementById('ai-helper-slots');
   if (!container) {
     container = document.createElement('div');
     container.id = 'ai-helper-slots';
     container.className = 'ai-helper-container';
-    // 尋找 Gemini 輸入框的最外層包裝
+    // 確保放在 Gemini 輸入區域上方
     const wrapper = inputArea.closest('.input-area-container') || inputArea.parentElement;
     wrapper.prepend(container);
   }
+  
   const slots = [
     { key: 'identities', label: '身份', val: activeIdentity, display: activeIdentityLabel ? `身份：${activeIdentityLabel}` : '點擊設定身份' },
     { key: 'events', label: '指令', val: activePromptText, display: activePromptLabel ? `指令：${activePromptLabel}` : '點擊設定指令' },
     { key: 'styles', label: '風格', val: activeStyle, display: activeStyleLabel ? `風格：${activeStyleLabel}` : '點擊設定風格' }
   ];
+  
   container.innerHTML = slots.map(s => `
     <div class="prompt-tag-slot ${s.val ? 'active' : ''}" data-type="${s.key}">
       <span class="tag-text">${s.display}</span>
@@ -79,7 +83,7 @@ function updateTagUI() {
   });
 }
 
-// --- 3. 搜尋選單核心邏輯 ---
+// --- 3. 智慧向上彈出選單 ---
 function triggerSearchMenu(type, targetEl) {
   currentMenuType = type;
   chrome.storage.local.get([type], (data) => {
@@ -93,14 +97,17 @@ function showSearchMenu(el) {
   removeMenu();
   menu = document.createElement('div');
   menu.className = 'ai-search-menu';
-  const rect = el.getBoundingClientRect();
   
-  // 防止選單超出視窗右側
+  // 計算位置：改為向上彈出
+  const rect = el.getBoundingClientRect();
+  const menuHeight = 350; // 預估最大高度
+  
   let leftPos = rect.left;
   if (leftPos + 320 > window.innerWidth) leftPos = window.innerWidth - 340;
   
   menu.style.left = `${leftPos}px`;
-  menu.style.top = `${rect.bottom + 10}px`;
+  // 核心修正：將選單底部對齊 Tag 頂部 (減去 8px 間距)
+  menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
 
   menu.innerHTML = `
     <div class="menu-search-box">
@@ -142,6 +149,7 @@ function renderList() {
   });
 }
 
+// --- 4. 數據與事件處理 ---
 function selectItem(selected) {
   if (currentMenuType === 'identities') { activeIdentity = selected.text; activeIdentityLabel = selected.label; }
   if (currentMenuType === 'events') { activePromptText = selected.text; activePromptLabel = selected.label; }
@@ -159,7 +167,6 @@ function clearSlot(type) {
 
 function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
 
-// 鍵盤與送出邏輯維持原樣 (優化了 finalMessage 的呈現)
 document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (menu) {
@@ -179,17 +186,15 @@ document.addEventListener('keydown', (e) => {
       const finalMessage = `【身份】\n${activeIdentity || "（未指定）"}\n\n【指令】\n${activePromptText || "（未指定）"}\n\n【風格】\n${activeStyle || "（未指定）"}\n\n【處理內容】\n${userInput}`;
       field.innerText = finalMessage;
       setTimeout(() => {
-        const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
+        const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
         if (sendBtn) { sendBtn.click(); activePromptText = ""; activePromptLabel = ""; updateTagUI(); }
       }, 50);
     }
   }
 }, true);
 
-// 點擊外部關閉選單
 document.addEventListener('click', (e) => {
   if (menu && !menu.contains(e.target) && !e.target.closest('.prompt-tag-slot')) removeMenu();
 });
 
-// 每 2 秒檢查一次 UI 是否存在 (Gemini 換頁時會消失)
 setInterval(updateTagUI, 2000);
