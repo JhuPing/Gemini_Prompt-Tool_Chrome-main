@@ -1,45 +1,51 @@
 let selectedIndex = 0;
 let menu = null;
-let allSnippets = []; // 儲存當前分類的所有資料
-let filteredSnippets = []; // 儲存搜尋過濾後的資料
+let allSnippets = [];
+let filteredSnippets = [];
 let currentMenuType = 'events';
 
 let activeIdentity = "";
+let activeIdentityLabel = ""; // 新增：紀錄名稱
 let activePromptLabel = "";
 let activePromptText = "";
 let activeStyle = "";
+let activeStyleLabel = "";    // 新增：紀錄名稱
 
-// --- 1. 注入 CSS (增加搜尋框樣式) ---
+// --- 1. 注入 CSS (優化 Tag 寬度與截斷) ---
 const style = document.createElement('style');
 style.innerHTML = `
-  .ai-helper-container { display: flex; gap: 8px; margin: 8px 12px; flex-wrap: wrap; }
+  .ai-helper-container { display: flex; gap: 10px; margin: 12px; flex-wrap: wrap; align-items: center; }
   .prompt-tag-slot {
-    display: flex; align-items: center; padding: 6px 14px; border-radius: 20px;
-    border: 1.5px dashed #dadce0; font-size: 13px; cursor: pointer; background: #fff; color: #5f6368; gap: 6px;
+    display: flex; align-items: center; justify-content: space-between;
+    width: 160px; height: 36px; padding: 0 12px; border-radius: 10px;
+    border: 1.5px dashed #dadce0; font-size: 13px; cursor: pointer; background: #fff; color: #5f6368;
+    box-sizing: border-box; transition: all 0.2s;
   }
   .prompt-tag-slot.active { border-style: solid; background: #e8f0fe; color: #1a73e8; border-color: #1a73e8; font-weight: bold; }
-  .tag-close { cursor: pointer; margin-left: 4px; font-size: 14px; }
+  .tag-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: left; }
+  .tag-close { cursor: pointer; margin-left: 6px; font-size: 16px; opacity: 0.7; }
+  .tag-close:hover { opacity: 1; color: #d93025; }
   
-  /* 搜尋選單樣式 */
+  /* 搜尋選單樣式修正 */
   .ai-search-menu {
-    position: fixed; border: 1px solid #dadce0; z-index: 10000; width: 320px; 
-    background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); overflow: hidden;
+    position: fixed; border: 1px solid #dadce0; z-index: 999999 !important; width: 320px; 
+    background: #fff; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.2); overflow: hidden;
   }
   .menu-search-box { padding: 12px; border-bottom: 1px solid #f1f3f4; background: #f8f9fa; }
   .menu-search-input {
-    width: 100%; padding: 8px 12px; border: 1px solid #dadce0; border-radius: 6px;
-    font-size: 14px; outline: none; transition: border-color 0.2s;
+    width: 100%; padding: 10px 12px; border: 1.5px solid #dadce0; border-radius: 8px;
+    font-size: 14px; outline: none; box-sizing: border-box;
   }
   .menu-search-input:focus { border-color: #4285f4; }
-  .menu-list-container { max-height: 300px; overflow-y: auto; }
-  .menu-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f1f3f4; transition: background 0.2s; }
-  .menu-item.selected { background-color: #e8f0fe; }
-  .menu-item-label { font-weight: bold; font-size: 14px; color: #3c4043; margin-bottom: 2px; }
+  .menu-list-container { max-height: 280px; overflow-y: auto; }
+  .menu-item { padding: 14px 18px; cursor: pointer; border-bottom: 1px solid #f1f3f4; transition: background 0.2s; }
+  .menu-item.selected { background-color: #f1f3f4; }
+  .menu-item-label { font-weight: bold; font-size: 14px; color: #1a73e8; margin-bottom: 4px; }
   .menu-item-text { font-size: 12px; color: #70757a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 `;
 document.head.appendChild(style);
 
-// --- 2. UI 渲染 (槽位) ---
+// --- 2. UI 渲染 (槽位修正) ---
 function updateTagUI() {
   const inputArea = document.querySelector('div[contenteditable="true"]');
   if (!inputArea) return;
@@ -48,23 +54,26 @@ function updateTagUI() {
     container = document.createElement('div');
     container.id = 'ai-helper-slots';
     container.className = 'ai-helper-container';
-    inputArea.parentElement.prepend(container);
+    // 尋找 Gemini 輸入框的最外層包裝
+    const wrapper = inputArea.closest('.input-area-container') || inputArea.parentElement;
+    wrapper.prepend(container);
   }
   const slots = [
-    { key: 'identities', label: '身份', val: activeIdentity, display: activeIdentity ? `身份：${activeIdentity.substring(0,6)}...` : '+ 身份' },
-    { key: 'events', label: '指令', val: activePromptText, display: activePromptLabel ? `指令：${activePromptLabel}` : '+ 指令' },
-    { key: 'styles', label: '風格', val: activeStyle, display: activeStyle ? `風格：${activeStyle.substring(0,6)}...` : '+ 風格' }
+    { key: 'identities', label: '身份', val: activeIdentity, display: activeIdentityLabel ? `身份：${activeIdentityLabel}` : '點擊設定身份' },
+    { key: 'events', label: '指令', val: activePromptText, display: activePromptLabel ? `指令：${activePromptLabel}` : '點擊設定指令' },
+    { key: 'styles', label: '風格', val: activeStyle, display: activeStyleLabel ? `風格：${activeStyleLabel}` : '點擊設定風格' }
   ];
   container.innerHTML = slots.map(s => `
     <div class="prompt-tag-slot ${s.val ? 'active' : ''}" data-type="${s.key}">
-      <span>${s.display}</span>
+      <span class="tag-text">${s.display}</span>
       ${s.val ? `<span class="tag-close" data-clear="${s.key}">✕</span>` : ''}
     </div>
   `).join('');
+
   container.querySelectorAll('.prompt-tag-slot').forEach(el => {
     el.onclick = (e) => {
       const clearKey = e.target.getAttribute('data-clear');
-      if (clearKey) { clearSlot(clearKey); } 
+      if (clearKey) { e.stopPropagation(); clearSlot(clearKey); } 
       else { triggerSearchMenu(el.getAttribute('data-type'), el); }
     };
   });
@@ -85,12 +94,17 @@ function showSearchMenu(el) {
   menu = document.createElement('div');
   menu.className = 'ai-search-menu';
   const rect = el.getBoundingClientRect();
-  menu.style.left = `${rect.left}px`;
-  menu.style.top = `${rect.bottom + 8}px`;
+  
+  // 防止選單超出視窗右側
+  let leftPos = rect.left;
+  if (leftPos + 320 > window.innerWidth) leftPos = window.innerWidth - 340;
+  
+  menu.style.left = `${leftPos}px`;
+  menu.style.top = `${rect.bottom + 10}px`;
 
   menu.innerHTML = `
     <div class="menu-search-box">
-      <input type="text" class="menu-search-input" placeholder="搜尋名稱、內容或代碼..." id="ai-search-input">
+      <input type="text" class="menu-search-input" placeholder="搜尋名稱或內容..." id="ai-search-input">
     </div>
     <div class="menu-list-container" id="ai-menu-list"></div>
   `;
@@ -99,31 +113,27 @@ function showSearchMenu(el) {
   const searchInput = document.getElementById('ai-search-input');
   searchInput.focus();
   
-  // 監聽搜尋輸入
   searchInput.oninput = (e) => {
     const query = e.target.value.toLowerCase();
     filteredSnippets = allSnippets.filter(s => 
-      s.label.toLowerCase().includes(query) || 
-      s.text.toLowerCase().includes(query) || 
-      (s.shortcut && s.shortcut.toLowerCase().includes(query))
+      s.label.toLowerCase().includes(query) || s.text.toLowerCase().includes(query)
     );
     selectedIndex = 0;
     renderList();
   };
-
   renderList();
 }
 
 function renderList() {
   const listContainer = document.getElementById('ai-menu-list');
   if (!listContainer) return;
-  listContainer.innerHTML = filteredSnippets.length ? '' : '<div style="padding:15px;color:#999;font-size:13px;">找不到符合的項目</div>';
+  listContainer.innerHTML = filteredSnippets.length ? '' : '<div style="padding:20px;color:#999;font-size:13px;text-align:center;">無相符項目</div>';
 
   filteredSnippets.forEach((s, i) => {
     const itemEl = document.createElement('div');
     itemEl.className = `menu-item ${i === selectedIndex ? 'selected' : ''}`;
     itemEl.innerHTML = `
-      <div class="menu-item-label">${s.label} ${s.shortcut ? `<small style="color:#4285f4;">/${s.shortcut}</small>` : ''}</div>
+      <div class="menu-item-label">${s.label}</div>
       <div class="menu-item-text">${s.text}</div>
     `;
     itemEl.onclick = () => selectItem(s);
@@ -132,25 +142,24 @@ function renderList() {
   });
 }
 
-// --- 4. 輔助功能 (選擇、清除、送出) ---
 function selectItem(selected) {
-  if (currentMenuType === 'identities') activeIdentity = selected.text;
+  if (currentMenuType === 'identities') { activeIdentity = selected.text; activeIdentityLabel = selected.label; }
   if (currentMenuType === 'events') { activePromptText = selected.text; activePromptLabel = selected.label; }
-  if (currentMenuType === 'styles') activeStyle = selected.text;
+  if (currentMenuType === 'styles') { activeStyle = selected.text; activeStyleLabel = selected.label; }
   removeMenu();
   updateTagUI();
 }
 
 function clearSlot(type) {
-  if (type === 'identities') activeIdentity = "";
+  if (type === 'identities') { activeIdentity = ""; activeIdentityLabel = ""; }
   if (type === 'events') { activePromptText = ""; activePromptLabel = ""; }
-  if (type === 'styles') activeStyle = "";
+  if (type === 'styles') { activeStyle = ""; activeStyleLabel = ""; }
   updateTagUI();
 }
 
 function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
 
-// 鍵盤監聽
+// 鍵盤與送出邏輯維持原樣 (優化了 finalMessage 的呈現)
 document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (menu) {
@@ -161,14 +170,12 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   
-  // Enter 大合體送出
   if (e.key === 'Enter' && !e.shiftKey) {
     const field = e.target;
     if (field.isContentEditable && (activeIdentity || activePromptText || activeStyle)) {
       const userInput = field.innerText.trim();
       if (!userInput) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      e.preventDefault(); e.stopImmediatePropagation();
       const finalMessage = `【身份】\n${activeIdentity || "（未指定）"}\n\n【指令】\n${activePromptText || "（未指定）"}\n\n【風格】\n${activeStyle || "（未指定）"}\n\n【處理內容】\n${userInput}`;
       field.innerText = finalMessage;
       setTimeout(() => {
@@ -179,5 +186,10 @@ document.addEventListener('keydown', (e) => {
   }
 }, true);
 
-// 初始化
-setTimeout(updateTagUI, 2000);
+// 點擊外部關閉選單
+document.addEventListener('click', (e) => {
+  if (menu && !menu.contains(e.target) && !e.target.closest('.prompt-tag-slot')) removeMenu();
+});
+
+// 每 2 秒檢查一次 UI 是否存在 (Gemini 換頁時會消失)
+setInterval(updateTagUI, 2000);
