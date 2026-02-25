@@ -11,7 +11,7 @@ let activePromptText = "";
 let activeStyle = "";
 let activeStyleLabel = "";
 
-// --- 1. 注入 CSS (固定 Tag 寬度與文字截斷) ---
+// --- 1. 注入 CSS ---
 const style = document.createElement('style');
 style.innerHTML = `
   .ai-helper-container { display: flex; gap: 10px; margin: 12px; flex-wrap: wrap; align-items: center; }
@@ -26,7 +26,6 @@ style.innerHTML = `
   .tag-close { cursor: pointer; margin-left: 6px; font-size: 16px; opacity: 0.7; }
   .tag-close:hover { opacity: 1; color: #d93025; }
   
-  /* 搜尋選單樣式修正：向上彈出定位 */
   .ai-search-menu {
     position: fixed; border: 1px solid #dadce0; z-index: 1000000 !important; width: 320px; 
     background: #fff; border-radius: 12px; box-shadow: 0 -8px 30px rgba(0,0,0,0.2); overflow: hidden;
@@ -56,7 +55,6 @@ function updateTagUI() {
     container = document.createElement('div');
     container.id = 'ai-helper-slots';
     container.className = 'ai-helper-container';
-    // 確保放在 Gemini 輸入區域上方
     const wrapper = inputArea.closest('.input-area-container') || inputArea.parentElement;
     wrapper.prepend(container);
   }
@@ -83,7 +81,7 @@ function updateTagUI() {
   });
 }
 
-// --- 3. 智慧向上彈出選單 ---
+// --- 3. 選單控制 ---
 function triggerSearchMenu(type, targetEl) {
   currentMenuType = type;
   chrome.storage.local.get([type], (data) => {
@@ -98,15 +96,11 @@ function showSearchMenu(el) {
   menu = document.createElement('div');
   menu.className = 'ai-search-menu';
   
-  // 計算位置：改為向上彈出
   const rect = el.getBoundingClientRect();
-  const menuHeight = 350; // 預估最大高度
-  
   let leftPos = rect.left;
   if (leftPos + 320 > window.innerWidth) leftPos = window.innerWidth - 340;
   
   menu.style.left = `${leftPos}px`;
-  // 核心修正：將選單底部對齊 Tag 頂部 (減去 8px 間距)
   menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
 
   menu.innerHTML = `
@@ -149,7 +143,6 @@ function renderList() {
   });
 }
 
-// --- 4. 數據與事件處理 ---
 function selectItem(selected) {
   if (currentMenuType === 'identities') { activeIdentity = selected.text; activeIdentityLabel = selected.label; }
   if (currentMenuType === 'events') { activePromptText = selected.text; activePromptLabel = selected.label; }
@@ -167,6 +160,7 @@ function clearSlot(type) {
 
 function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
 
+// --- 4. 關鍵修正：送出後不清除狀態 ---
 document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (menu) {
@@ -183,11 +177,18 @@ document.addEventListener('keydown', (e) => {
       const userInput = field.innerText.trim();
       if (!userInput) return;
       e.preventDefault(); e.stopImmediatePropagation();
+      
       const finalMessage = `【身份】\n${activeIdentity || "（未指定）"}\n\n【指令】\n${activePromptText || "（未指定）"}\n\n【風格】\n${activeStyle || "（未指定）"}\n\n【處理內容】\n${userInput}`;
       field.innerText = finalMessage;
+      
       setTimeout(() => {
         const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
-        if (sendBtn) { sendBtn.click(); activePromptText = ""; activePromptLabel = ""; updateTagUI(); }
+        if (sendBtn) {
+          sendBtn.click();
+          // 【修正點】：這裡不再將 activePromptText 與 activePromptLabel 設為空值
+          // 這樣「指令」標籤就會像「身份」和「風格」一樣維持選中狀態
+          updateTagUI(); 
+        }
       }, 50);
     }
   }
