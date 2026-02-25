@@ -11,7 +11,7 @@ let activePromptText = "";
 let activeStyle = "";
 let activeStyleLabel = "";
 
-// --- 1. 注入 CSS ---
+// --- 1. 注入 CSS (維持固定寬度與標籤美化) ---
 const style = document.createElement('style');
 style.innerHTML = `
   .ai-helper-container { display: flex; gap: 10px; margin: 12px; flex-wrap: wrap; align-items: center; }
@@ -45,7 +45,7 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- 2. UI 渲染 ---
+// --- 2. UI 渲染邏輯 (槽位常駐) ---
 function updateTagUI() {
   const inputArea = document.querySelector('div[contenteditable="true"]');
   if (!inputArea) return;
@@ -81,7 +81,7 @@ function updateTagUI() {
   });
 }
 
-// --- 3. 選單控制 ---
+// --- 3. 選單控制與定位 ---
 function triggerSearchMenu(type, targetEl) {
   currentMenuType = type;
   chrome.storage.local.get([type], (data) => {
@@ -160,7 +160,7 @@ function clearSlot(type) {
 
 function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
 
-// --- 4. 訊息發送邏輯 (調整為您要求的精簡格式) ---
+// --- 4. 訊息發送邏輯 (極致精簡版) ---
 document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (menu) {
@@ -178,13 +178,12 @@ document.addEventListener('keydown', (e) => {
       if (!userInput) return;
       e.preventDefault(); e.stopImmediatePropagation();
       
-      // 根據您的需求更新組合格式
+      // 根據需求優化為緊湊格式，移除多餘換行
       const finalMessage = `身份：${activeIdentity || "（未指定）"}
 指令：${activePromptText || "（未指定）"}
-回覆風格：${activeStyle || "（未指定）"}
+風格：${activeStyle || "（未指定）"}
 ------------------------------
-要處理的內容：
-${userInput}`;
+處理內容：${userInput}`;
 
       field.innerText = finalMessage;
       
