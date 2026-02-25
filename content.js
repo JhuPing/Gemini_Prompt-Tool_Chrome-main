@@ -1,97 +1,184 @@
 let selectedIndex = 0;
 let menu = null;
 let filteredSnippets = [];
+let currentMenuType = 'all'; // 'all', 'identities', 'events', 'styles'
 
-// --- 1. 狀態管理與 CSS 注入 ---
-let activePromptText = "";
-let activePromptLabel = "";
+// 當前選中的內容狀態
+let activeIdentity = "";
+let activePromptLabel = ""; // 指令的名稱
+let activePromptText = "";  // 指令的內容
+let activeStyle = "";
 
+// --- 1. 注入 CSS 樣式 ---
 const style = document.createElement('style');
 style.innerHTML = `
-  .prompt-tag-wrapper {
-    display: none; 
-    align-items: center;
-    background-color: #f1f3f4;
-    padding: 6px 12px;
-    margin: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid #dadce0;
-    width: fit-content;
-    font-size: 13px;
-    color: #1a73e8;
-    font-weight: bold;
+  .ai-helper-container {
+    display: flex;
     gap: 8px;
-    z-index: 10;
+    margin: 8px 12px;
+    flex-wrap: wrap;
+    font-family: sans-serif;
   }
-  .prompt-tag-close { cursor: pointer; color: #5f6368; font-size: 16px; }
-  .prompt-tag-close:hover { color: #d93025; }
+  .prompt-tag-slot {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1.5px dashed #dadce0;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fff;
+    color: #5f6368;
+    gap: 6px;
+  }
+  .prompt-tag-slot:hover { border-color: #4285f4; background: #f8faff; }
+  .prompt-tag-slot.active {
+    border-style: solid;
+    background: #e8f0fe;
+    color: #1a73e8;
+    border-color: #1a73e8;
+    font-weight: bold;
+  }
+  .tag-close { cursor: pointer; margin-left: 4px; color: #5f6368; font-size: 14px; }
+  .tag-close:hover { color: #d93025; }
 `;
 document.head.appendChild(style);
 
-function renderItems() {
+// --- 2. 介面渲染：三個 Tag 槽位 ---
+function updateTagUI() {
+  const inputArea = document.querySelector('div[contenteditable="true"]');
+  if (!inputArea) return;
+
+  let container = document.getElementById('ai-helper-slots');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'ai-helper-slots';
+    container.className = 'ai-helper-container';
+    // 插入在輸入框父層的最前面
+    inputArea.parentElement.prepend(container);
+  }
+
+  const slots = [
+    { key: 'identities', label: '身份', val: activeIdentity, display: activeIdentity ? `身份：${activeIdentity.substring(0,8)}...` : '+ 身份' },
+    { key: 'events', label: '指令', val: activePromptText, display: activePromptLabel ? `指令：${activePromptLabel}` : '+ 指令' },
+    { key: 'styles', label: '風格', val: activeStyle, display: activeStyle ? `風格：${activeStyle.substring(0,8)}...` : '+ 風格' }
+  ];
+
+  container.innerHTML = slots.map(s => `
+    <div class="prompt-tag-slot ${s.val ? 'active' : ''}" data-type="${s.key}">
+      <span class="tag-text">${s.display}</span>
+      ${s.val ? `<span class="tag-close" data-clear="${s.key}">✕</span>` : ''}
+    </div>
+  `).join('');
+
+  // 綁定點擊事件
+  container.querySelectorAll('.prompt-tag-slot').forEach(el => {
+    el.onclick = (e) => {
+      const clearKey = e.target.getAttribute('data-clear');
+      if (clearKey) {
+        clearSlot(clearKey);
+      } else {
+        const type = el.getAttribute('data-type');
+        triggerMenuByCategory(type, el);
+      }
+    };
+  });
+}
+
+function clearSlot(type) {
+  if (type === 'identities') activeIdentity = "";
+  if (type === 'events') { activePromptText = ""; activePromptLabel = ""; }
+  if (type === 'styles') activeStyle = "";
+  updateTagUI();
+}
+
+// --- 3. 選單邏輯 ---
+function triggerMenuByCategory(type, targetEl) {
+  currentMenuType = type;
+  chrome.storage.local.get([type], (data) => {
+    filteredSnippets = data[type] || [];
+    if (filteredSnippets.length > 0) {
+      showMenuAtElement(targetEl);
+      renderMenuItems();
+    }
+  });
+}
+
+function renderMenuItems() {
   if (!menu) return;
   menu.innerHTML = '';
   chrome.storage.local.get('menuConfig', (data) => {
-    const cfg = data.menuConfig || { bgColor: '#ffffff', activeBg: '#1a73e8', fontSize: 18, subFontSize: 13 };
+    const cfg = data.menuConfig || { bgColor: '#ffffff', activeBg: '#1a73e8', fontSize: 16, subFontSize: 12 };
     menu.style.backgroundColor = cfg.bgColor;
+
     filteredSnippets.forEach((s, i) => {
       const div = document.createElement('div');
       const isActive = i === selectedIndex;
+      div.style.cssText = `padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; background-color: ${isActive ? cfg.activeBg : 'transparent'}; color: ${isActive ? '#fff' : '#333'};`;
       div.innerHTML = `
-        <div style="font-size: ${cfg.fontSize}px; font-weight: bold; margin-bottom: 4px;">${s.label}</div>
-        <div style="font-size: ${cfg.subFontSize}px; opacity: 0.8; display: block;">${s.text}</div>
+        <div style="font-size: ${cfg.fontSize}px; font-weight: bold;">${s.label}</div>
+        <div style="font-size: ${cfg.subFontSize}px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.text}</div>
       `;
-      div.style.cssText = `
-        padding: 10px 20px; cursor: pointer; border-bottom: 1px solid #eee;
-        background-color: ${isActive ? cfg.activeBg : 'transparent'} !important;
-        color: ${isActive ? '#ffffff' : '#202124'} !important;
-      `;
-      div.onclick = () => insertText(document.activeElement);
+      div.onclick = () => selectItem(s);
       menu.appendChild(div);
       if (isActive) div.scrollIntoView({ block: 'nearest' });
     });
   });
 }
 
-// --- 2. 核心邏輯：加入 IME 輸入法判定 ---
+function selectItem(selected) {
+  if (currentMenuType === 'identities') activeIdentity = selected.text;
+  if (currentMenuType === 'events') { activePromptText = selected.text; activePromptLabel = selected.label; }
+  if (currentMenuType === 'styles') activeStyle = selected.text;
+  
+  removeMenu();
+  updateTagUI();
+}
+
+function showMenuAtElement(el) {
+  removeMenu();
+  menu = document.createElement('div');
+  const rect = el.getBoundingClientRect();
+  menu.style.cssText = `position: fixed; border: 1px solid #ccc; z-index: 10000; width: 300px; left: ${rect.left}px; top: ${rect.bottom + 5}px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow-y: auto; max-height: 300px;`;
+  document.body.appendChild(menu);
+}
+
+function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
+
+// --- 4. 監聽輸入與 Enter 送出 ---
 document.addEventListener('keydown', (e) => {
-  // 核心修正：如果使用者正在「選字中」(IME composing)，則不執行我們的 Enter 邏輯
-  if (e.isComposing || e.keyCode === 229) {
+  // IME 處理
+  if (e.isComposing || e.keyCode === 229) return;
+
+  if (menu) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = (selectedIndex + 1) % filteredSnippets.length; renderMenuItems(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = (selectedIndex - 1 + filteredSnippets.length) % filteredSnippets.length; renderMenuItems(); }
+    else if (e.key === 'Enter') { e.preventDefault(); selectItem(filteredSnippets[selectedIndex]); }
+    else if (e.key === 'Escape') { removeMenu(); }
     return;
   }
 
-  if (menu) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = (selectedIndex + 1) % filteredSnippets.length; renderItems(); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = (selectedIndex - 1 + filteredSnippets.length) % filteredSnippets.length; renderItems(); }
-    else if (e.key === 'Enter') { 
-      e.preventDefault(); 
-      e.stopImmediatePropagation();
-      insertText(document.activeElement); 
-    }
-    else if (e.key === 'Escape') { removeMenu(); }
-    return;
-  } 
-
-  // 只有在非選字狀態下的 Enter 才會觸發合併送出
-  if (e.key === 'Enter' && !e.shiftKey && activePromptText) {
+  // 大合體發送邏輯
+  if (e.key === 'Enter' && !e.shiftKey) {
     const field = e.target;
-    if (field.isContentEditable) {
+    if (field.isContentEditable && (activeIdentity || activePromptText || activeStyle)) {
+      const userInput = field.innerText.trim();
+      if (!userInput) return;
+
       e.preventDefault();
       e.stopImmediatePropagation();
+
+      const finalMessage = `【身份】\n${activeIdentity || "（未指定）"}\n\n【指令】\n${activePromptText || "（未指定）"}\n\n【風格】\n${activeStyle || "（未指定）"}\n\n【處理內容】\n${userInput}`;
       
-      const userInput = field.innerText.trim();
-      
-      // 先清空，再填入結構化內容
-      field.innerText = "";
-      const finalMessage = `【身份與提示詞】\n${activePromptText}\n\n【處理內容】\n${userInput}`;
       field.innerText = finalMessage;
 
       setTimeout(() => {
-        const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"], button[aria-label*="傳送"]');
+        const sendBtn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
         if (sendBtn) {
           sendBtn.click();
-          activePromptText = "";
-          activePromptLabel = "";
+          // 發送後清除「指令」，身份與風格通常會延用，所以不清除
+          activePromptText = ""; activePromptLabel = "";
           updateTagUI();
         }
       }, 50);
@@ -99,77 +186,19 @@ document.addEventListener('keydown', (e) => {
   }
 }, true);
 
+// 監聽 / 快捷鍵
 document.addEventListener('input', (e) => {
   const text = e.target.innerText || "";
-  const lastSlashIndex = text.lastIndexOf('/');
-  if (lastSlashIndex !== -1) {
-    const query = text.slice(lastSlashIndex + 1).toLowerCase().trim();
-    chrome.storage.local.get({mySnippets: []}, (data) => {
-      filteredSnippets = data.mySnippets.filter(s => 
-        s.label.toLowerCase().includes(query) || (s.shortcut && s.shortcut.toLowerCase().includes(query))
-      );
-      if (filteredSnippets.length > 0) { showMenuOnTop(e.target); renderItems(); } else { removeMenu(); }
+  if (text.endsWith('/')) {
+    currentMenuType = 'events'; // 預設 / 搜尋指令
+    chrome.storage.local.get(['events'], (data) => {
+      filteredSnippets = data.events || [];
+      showMenuAtElement(e.target);
+      renderMenuItems();
     });
-  } else { removeMenu(); }
+  }
+  updateTagUI(); // 確保 UI 存在
 }, true);
 
-function showMenuOnTop(parent) {
-  if (menu) return;
-  menu = document.createElement('div');
-  const rect = parent.getBoundingClientRect();
-  menu.style.cssText = `position: fixed; border: 2px solid #1a73e8; z-index: 1000000; width: ${rect.width}px; left: ${rect.left}px; bottom: ${window.innerHeight - rect.top + 10}px; border-radius: 12px 12px 0 0; box-shadow: 0 -8px 20px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; max-height: 400px;`;
-  document.body.appendChild(menu);
-}
-
-function insertText(field) {
-  const selected = filteredSnippets[selectedIndex];
-  activePromptText = selected.text;
-  activePromptLabel = selected.label;
-
-  const val = field.innerText;
-  const lastSlashIndex = val.lastIndexOf('/');
-  const prefix = val.slice(0, lastSlashIndex);
-
-  field.innerText = prefix;
-  
-  field.focus();
-  const range = document.createRange();
-  const sel = window.getSelection();
-  range.selectNodeContents(field);
-  range.collapse(false); 
-  sel.removeAllRanges();
-  sel.addRange(range);
-
-  field.dispatchEvent(new Event('input', { bubbles: true }));
-  updateTagUI();
-  removeMenu();
-}
-
-function updateTagUI() {
-  let tagWrapper = document.getElementById('my-tag-wrapper');
-  const inputArea = document.querySelector('div[contenteditable="true"]');
-  
-  if (!tagWrapper && inputArea) {
-    tagWrapper = document.createElement('div');
-    tagWrapper.id = 'my-tag-wrapper';
-    tagWrapper.className = 'prompt-tag-wrapper';
-    tagWrapper.innerHTML = `<span id="tag-label"></span><span class="prompt-tag-close">✕</span>`;
-    inputArea.parentElement.appendChild(tagWrapper);
-    
-    tagWrapper.querySelector('.prompt-tag-close').onclick = (e) => {
-      e.stopPropagation();
-      activePromptText = "";
-      activePromptLabel = "";
-      updateTagUI();
-    };
-  }
-
-  if (activePromptLabel && tagWrapper) {
-    tagWrapper.style.display = 'flex';
-    document.getElementById('tag-label').innerText = `指令掛載：${activePromptLabel}`;
-  } else if (tagWrapper) {
-    tagWrapper.style.display = 'none';
-  }
-}
-
-function removeMenu() { if (menu) { menu.remove(); menu = null; selectedIndex = 0; } }
+// 初始化渲染
+setTimeout(updateTagUI, 2000); // 延遲確保 Gemini 載入完成
