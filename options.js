@@ -1,17 +1,14 @@
-// === 以下區塊是處理：核心配置，完全移除 hasShortcut ===
 const CONFIG = {
-  identities: { title: "身份", desc: "設定 AI 扮演的角色身份，預設為空值", hasShortcut: false },
-  events: { title: "指令", desc: "管理您的指令庫 (點選網頁標籤呼叫)", hasShortcut: false },
-  styles: { title: "風格", desc: "設定 AI 輸出的語氣風格，預設為空值", hasShortcut: false }
+  identities: { title: "身份", desc: "設定 AI 扮演的角色身份", hasShortcut: false },
+  events: { title: "指令", desc: "管理您的指令庫", hasShortcut: false },
+  styles: { title: "風格", desc: "設定 AI 輸出的語氣風格", hasShortcut: false }
 };
 
 const DEFAULT_MENU_CONFIG = { bgColor: '#ffffff', activeBg: '#1a73e8', fontSize: 18, subFontSize: 13 };
-
 let currentType = 'identities';
 let allData = { identities: [], events: [], styles: [] };
 let editIndex = -1;
 
-// === 以下區塊是處理：側邊欄選單的縮合與切換 ===
 document.getElementById('prompt-menu-toggle').onclick = () => {
   document.getElementById('prompt-group-wrapper').classList.toggle('collapsed');
 };
@@ -21,37 +18,23 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (this.id === 'prompt-menu-toggle') return;
     const target = this.getAttribute('data-target');
     const type = this.getAttribute('data-type');
-    
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     this.classList.add('active');
-    
-    document.querySelectorAll('.section').forEach(sec => {
-      sec.style.display = 'none';
-      sec.classList.remove('active');
-    });
-    
+    document.querySelectorAll('.section').forEach(sec => { sec.style.display = 'none'; sec.classList.remove('active'); });
     const targetSec = document.getElementById(target);
     targetSec.style.display = 'block';
     setTimeout(() => targetSec.classList.add('active'), 10);
-
-    if (type) {
-      currentType = type;
-      showView('list');
-      renderTable();
-    }
+    if (type) { currentType = type; showView('list'); renderTable(); }
   };
 });
 
-// === 以下區塊是處理：資料渲染與儲存邏輯 (已移除代號欄位) ===
 function renderTable() {
   const tbody = document.getElementById('data-list-body');
   const thead = document.getElementById('table-head');
   document.getElementById('page-title').innerText = CONFIG[currentType].title;
   document.getElementById('page-desc').innerText = CONFIG[currentType].desc;
-  
   thead.innerHTML = `<th>名稱</th><th>內容</th><th style="text-align:right;">操作</th>`;
   tbody.innerHTML = '';
-
   (allData[currentType] || []).forEach((item, index) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><b>${item.label}</b></td><td><span class="text-truncate">${item.text}</span></td><td style="text-align:right;"><button class="btn-gray-blue btn-edit">編輯</button> <button class="btn-gray-red btn-del">刪除</button></td>`;
@@ -74,13 +57,18 @@ document.getElementById('btn-save').onclick = () => {
   const label = document.getElementById('edit-label').value.trim();
   const text = document.getElementById('edit-text').value.trim();
   if (!label || !text) return alert('不可為空');
-  const newItem = { label, text };
-  if (editIndex > -1) allData[currentType][editIndex] = newItem;
-  else allData[currentType].push(newItem);
+  if (editIndex > -1) allData[currentType][editIndex] = { label, text };
+  else allData[currentType].push({ label, text });
   chrome.storage.local.set({ [currentType]: allData[currentType] }, () => { showView('list'); renderTable(); });
 };
 
-// === 以下區塊是處理：外觀預覽與同步 ===
+function deleteItem(index) {
+  if (confirm('確定刪除？')) {
+    allData[currentType].splice(index, 1);
+    chrome.storage.local.set({ [currentType]: allData[currentType] }, renderTable);
+  }
+}
+
 function updateSandbox() {
   const bg = document.getElementById('cfg-bg-color').value;
   const active = document.getElementById('cfg-active-bg').value;
@@ -116,22 +104,17 @@ function init() {
   chrome.storage.local.get({ identities: [], events: [], styles: [], menuConfig: DEFAULT_MENU_CONFIG }, (data) => {
     allData = { identities: data.identities, events: data.events, styles: data.styles };
     renderTable();
-    applyConfigToUI(data.menuConfig);
+    document.getElementById('cfg-bg-color').value = data.menuConfig.bgColor;
+    document.getElementById('cfg-active-bg').value = data.menuConfig.activeBg;
+    document.getElementById('cfg-font-size').value = data.menuConfig.fontSize;
+    document.getElementById('cfg-sub-font-size').value = data.menuConfig.subFontSize;
+    updateSandbox();
   });
-}
-
-function applyConfigToUI(cfg) {
-  document.getElementById('cfg-bg-color').value = cfg.bgColor;
-  document.getElementById('cfg-active-bg').value = cfg.activeBg;
-  document.getElementById('cfg-font-size').value = cfg.fontSize;
-  document.getElementById('cfg-sub-font-size').value = cfg.subFontSize;
-  updateSandbox();
 }
 
 ['cfg-bg-color', 'cfg-active-bg', 'cfg-font-size', 'cfg-sub-font-size'].forEach(id => {
   document.getElementById(id).addEventListener('input', updateSandbox);
 });
-
 document.getElementById('btn-new').onclick = () => openEditor(-1);
 document.getElementById('btn-back').onclick = () => showView('list');
 init();

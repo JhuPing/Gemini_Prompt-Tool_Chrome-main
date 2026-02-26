@@ -1,4 +1,3 @@
-// === 以下區塊是處理：核心變數與選單狀態 ===
 let selectedIndex = 0;
 let menu = null;
 let allSnippets = [];
@@ -9,13 +8,13 @@ let activeIdentity = "", activeIdentityLabel = "";
 let activePromptText = "", activePromptLabel = "";
 let activeStyle = "", activeStyleLabel = "";
 
-// === 以下區塊是處理：動態外觀樣式注入 ===
 function injectStyles() {
+  if (!chrome.runtime?.id) return; 
   chrome.storage.local.get({ menuConfig: { bgColor: '#ffffff', activeBg: '#1a73e8', fontSize: 18, subFontSize: 13 } }, (data) => {
+    if (chrome.runtime.lastError) return;
     const cfg = data.menuConfig;
     let style = document.getElementById('ai-helper-style');
     if (!style) { style = document.createElement('style'); style.id = 'ai-helper-style'; document.head.appendChild(style); }
-    
     style.innerHTML = `
       .ai-helper-container { display: flex; gap: 10px; margin: 12px; flex-wrap: wrap; align-items: center; }
       .prompt-tag-slot {
@@ -33,14 +32,16 @@ function injectStyles() {
       .menu-item-label { font-weight: bold; font-size: ${cfg.fontSize}px; color: ${cfg.activeBg}; }
       .menu-item-text { font-size: ${cfg.subFontSize}px; color: #70757a; }
       .menu-item { padding: 14px 18px; cursor: pointer; border-bottom: 1px solid #f1f3f4; }
+      .tag-close { margin-left: 8px; font-weight: bold; padding: 2px; }
     `;
   });
 }
 
-// === 以下區塊是處理：Tag UI 更新與點擊事件綁定 ===
 function updateTagUI() {
+  if (!chrome.runtime?.id) return;
   const inputArea = document.querySelector('div[contenteditable="true"]');
   if (!inputArea) return;
+  
   let container = document.getElementById('ai-helper-slots');
   if (!container) {
     container = document.createElement('div');
@@ -56,26 +57,33 @@ function updateTagUI() {
     { key: 'styles', display: activeStyleLabel ? `風格：${activeStyleLabel}` : '設定風格', val: activeStyle }
   ];
   
+  // 修正：移除 innerHTML 中的 onclick 以符合 CSP
   container.innerHTML = slots.map(s => `
     <div class="prompt-tag-slot ${s.val ? 'active' : ''}" data-type="${s.key}">
-      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.display}</span>
-      ${s.val ? `<span class="tag-close" data-clear="${s.key}" style="margin-left:8px;">✕</span>` : ''}
+      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;">${s.display}</span>
+      ${s.val ? `<span class="tag-close" data-clear="${s.key}">✕</span>` : ''}
     </div>
   `).join('') + `<button id="btn-reset-gemini" style="height:36px; padding:0 12px; border-radius:10px; cursor:pointer; background:#f1f3f4; border:1px solid #dadce0; font-size:13px;">清除記憶</button>`;
 
+  // 修正：手動綁定事件
+  const resetBtn = document.getElementById('btn-reset-gemini');
+  if (resetBtn) resetBtn.onclick = resetGeminiContext;
+
   container.querySelectorAll('.prompt-tag-slot').forEach(el => {
     el.onclick = (e) => {
-      if (e.target.dataset.clear) { clearSlot(e.target.dataset.clear); } 
-      else { triggerSearchMenu(el.dataset.type, el); }
+      if (e.target.dataset.clear) {
+        clearSlot(e.target.dataset.clear);
+      } else {
+        triggerSearchMenu(el.dataset.type, el);
+      }
     };
   });
-  document.getElementById('btn-reset-gemini').onclick = resetGeminiContext;
 }
 
-// === 以下區塊是處理：點擊 Tag 後開啟搜尋選單 ===
 function triggerSearchMenu(type, targetEl) {
   currentMenuType = type;
   chrome.storage.local.get([type], (data) => {
+    if (chrome.runtime.lastError) return;
     allSnippets = data[type] || [];
     filteredSnippets = [...allSnippets];
     showSearchMenu(targetEl);
@@ -106,6 +114,7 @@ function showSearchMenu(el) {
 
 function renderList() {
   const list = document.getElementById('ai-menu-list');
+  if (!list) return;
   list.innerHTML = filteredSnippets.map((s, i) => `
     <div class="menu-item ${i === selectedIndex ? 'selected' : ''}" data-idx="${i}">
       <div class="menu-item-label">${s.label}</div>
@@ -121,8 +130,7 @@ function selectItem(selected) {
   if (currentMenuType === 'identities') { activeIdentity = selected.text; activeIdentityLabel = selected.label; }
   else if (currentMenuType === 'events') { activePromptText = selected.text; activePromptLabel = selected.label; }
   else if (currentMenuType === 'styles') { activeStyle = selected.text; activeStyleLabel = selected.label; }
-  if (menu) menu.remove();
-  menu = null;
+  if (menu) { menu.remove(); menu = null; }
   updateTagUI();
 }
 
@@ -146,13 +154,12 @@ function resetGeminiContext() {
   }
 }
 
-// === 以下區塊是處理：Enter 發送時組合提示詞 ===
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !menu) {
     const field = e.target;
     if (field.isContentEditable && (activeIdentity || activePromptText || activeStyle)) {
       const content = field.innerText.trim();
-      if (!content) return;
+      if (!content || content.includes('### 任務重置 ###')) return;
       e.preventDefault();
       field.innerText = `身份：${activeIdentity || "未指定"}\n指令：${activePromptText || "未指定"}\n風格：${activeStyle || "未指定"}\n----------\n內容：${content}`;
       setTimeout(() => {
@@ -164,5 +171,9 @@ document.addEventListener('keydown', (e) => {
 }, true);
 
 document.addEventListener('click', (e) => { if (menu && !menu.contains(e.target) && !e.target.closest('.prompt-tag-slot')) { menu.remove(); menu = null; } });
+
+// 初始化與定時檢查
 injectStyles();
-setInterval(updateTagUI, 1000);
+setInterval(() => {
+  if (chrome.runtime?.id) updateTagUI();
+}, 1000);
