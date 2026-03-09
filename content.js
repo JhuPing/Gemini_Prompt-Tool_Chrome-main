@@ -250,17 +250,17 @@ function setFieldValue(field, text) {
   document.execCommand('insertText', false, text);
 }
 
-// ── 等待送出按鈕可用後點擊 ──
-function waitAndSubmit(callback) {
-  let attempts = 0;
-  const timer = setInterval(() => {
-    const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
-    if (btn && !btn.disabled) {
-      clearInterval(timer);
+// ── 自動提交 ──
+let isSubmitting = false;
+function autoSubmit(callback) {
+  setTimeout(() => {
+    const btn = document.querySelector('button[aria-label="傳送訊息"], button[aria-label="Send message"], .send-button');
+    if (btn) {
+      isSubmitting = true;
       btn.click();
       if (callback) callback();
+      setTimeout(() => { isSubmitting = false; }, 200);
     }
-    if (++attempts > 20) clearInterval(timer); // 最多等 2 秒
   }, 100);
 }
 
@@ -277,7 +277,7 @@ function resetGeminiContext() {
 
   // 寫入重置指令後等按鈕可用再送出
   setFieldValue(input, '### 任務重置 ### 請清除目前的上下文。接下來我將提供新的主題，請僅根據新提供的資料進行回覆。');
-  waitAndSubmit();
+  setTimeout(() => autoSubmit(), 50);
 }
 
 // ── IME 組字狀態偵測（避免攔截中文注音/拼音確認的 Enter）──
@@ -287,7 +287,7 @@ document.addEventListener('compositionend',   () => { isComposing = false; });
 
 // ── Enter 鍵送出 ──
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey && !menu && !isComposing) {
+  if (e.key === 'Enter' && !e.shiftKey && !menu && !isComposing && !isSubmitting) {
     const field = e.target;
     if (field.isContentEditable && (activeIdentity || activePromptText || activeStyle)) {
       const content = field.innerText.trim();
@@ -304,7 +304,7 @@ document.addEventListener('keydown', (e) => {
 
       // 用 execCommand 寫入組合內容，框架才能正確感知並啟用送出按鈕
       setFieldValue(field, combined);
-      waitAndSubmit(updateTagUI);
+      setTimeout(() => autoSubmit(updateTagUI), 50);
     }
   }
 }, true);
