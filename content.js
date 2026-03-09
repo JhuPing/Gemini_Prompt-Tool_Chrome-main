@@ -251,8 +251,13 @@ function resetGeminiContext() {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     setTimeout(() => {
       const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
-      if (btn) btn.click();
-    }, 100);
+      if (btn) {
+        btn.click();
+      } else {
+        // 備援：模擬 Enter 鍵
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+      }
+    }, 300);
   }
 }
 
@@ -265,10 +270,11 @@ document.addEventListener('keydown', (e) => {
       if (!content || content.includes('### 任務重置 ###')) return;
       e.preventDefault();
       field.innerText = `身份：${activeIdentity   || "未指定"}\n指令：${activePromptText || "未指定"}\n風格：${activeStyle     || "未指定"}\n----------\n內容：${content}`;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
       setTimeout(() => {
         const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
         if (btn) { btn.click(); updateTagUI(); }
-      }, 50);
+      }, 300);
     }
   }
 }, true);
