@@ -25,20 +25,20 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-// ── Sidebar 折疊 ──
-document.getElementById('prompt-menu-toggle').onclick = (e) => {
-  e.stopPropagation();
-  const submenu = document.getElementById('prompt-submenu');
-  const arrow   = document.getElementById('prompt-arrow');
-  const isCollapsed = submenu.style.maxHeight === '0px';
-  submenu.style.maxHeight = isCollapsed ? '500px' : '0px';
-  arrow.style.transform   = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
-};
-
-// ── 導覽點擊 ──
+// ── Sidebar 折疊 & 導覽點擊 ──
 document.querySelectorAll('.nav-item, .sub-item').forEach(item => {
-  item.onclick = function () {
-    if (this.id === 'prompt-menu-toggle') return;
+  item.onclick = function (e) {
+    // 折疊功能：只有 prompt-menu-toggle 才執行
+    if (this.id === 'prompt-menu-toggle') {
+      e.stopPropagation();
+      const submenu = document.getElementById('prompt-submenu');
+      const arrow   = document.getElementById('prompt-arrow');
+      const isCollapsed = submenu.style.maxHeight === '0px';
+      submenu.style.maxHeight = isCollapsed ? '500px' : '0px';
+      arrow.style.transform   = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+      return;
+    }
+    // 導覽邏輯：其他項目
     document.querySelectorAll('.nav-item, .sub-item').forEach(el => el.classList.remove('active'));
     this.classList.add('active');
     document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
