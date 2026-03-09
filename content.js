@@ -206,13 +206,19 @@ function showSearchMenu(el) {
   document.getElementById('ai-search-input').focus();
 }
 
+// ── 顯示用截斷（保留前後，中間以 ... 代替）──
+function truncateDisplay(str, frontLen = 10, backLen = 10) {
+  if (str.length <= frontLen + backLen + 3) return str;
+  return str.slice(0, frontLen) + ' ... ' + str.slice(-backLen);
+}
+
 function renderList() {
   const list = document.getElementById('ai-menu-list');
   if (!list) return;
   list.innerHTML = filteredSnippets.map((s, i) =>
     `<div class="menu-item ${i === selectedIndex ? 'selected' : ''}" data-idx="${i}">
-      <div class="menu-item-label">${s.label}</div>
-      <div class="menu-item-text">${s.text}</div>
+      <div class="menu-item-label">${truncateDisplay(s.label, 12, 8)}</div>
+      <div class="menu-item-text">${truncateDisplay(s.text, 20, 15)}</div>
     </div>`
   ).join('');
   list.querySelectorAll('.menu-item').forEach(el => {
