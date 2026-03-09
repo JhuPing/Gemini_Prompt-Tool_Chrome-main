@@ -242,29 +242,31 @@ function clearSlot(type) {
   updateTagUI();
 }
 
+// ── 安全寫入 contenteditable（讓 Gemini React 框架偵測到變更）──
+function setFieldValue(field, text) {
+  field.focus();
+  // 全選後用 insertText 寫入，框架才能感知
+  document.execCommand('selectAll', false, null);
+  document.execCommand('insertText', false, text);
+}
+
 // ── 清除記憶 ──
 function resetGeminiContext() {
   const input = document.querySelector('div[contenteditable="true"]');
-  if (input) {
-    // 先清空所有已選擇的狀態
-    activeIdentity = ""; activeIdentityLabel = "";
-    activePromptText = ""; activePromptLabel = "";
-    activeStyle = ""; activeStyleLabel = "";
-    updateTagUI();
-    // 寫入重置指令後直接送出
-    input.innerText = `### 任務重置 ###\n請清除目前的上下文。接下來我將提供新的主題，請僅根據新提供的資料進行回覆。`;
-    // 觸發 input 事件讓 Gemini 偵測到內容變更，再送出
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    setTimeout(() => {
-      const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
-      if (btn) {
-        btn.click();
-      } else {
-        // 備援：模擬 Enter 鍵
-        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
-      }
-    }, 300);
-  }
+  if (!input) return;
+
+  // 先清空所有已選擇的狀態
+  activeIdentity = ""; activeIdentityLabel = "";
+  activePromptText = ""; activePromptLabel = "";
+  activeStyle = ""; activeStyleLabel = "";
+  updateTagUI();
+
+  // 寫入重置指令後自動送出
+  setFieldValue(input, '### 任務重置 ### 請清除目前的上下文。接下來我將提供新的主題，請僅根據新提供的資料進行回覆。');
+  setTimeout(() => {
+    const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
+    if (btn) btn.click();
+  }, 300);
 }
 
 // ── Enter 鍵送出 ──
@@ -279,19 +281,13 @@ document.addEventListener('keydown', (e) => {
       // 組合完整提示詞
       const combined = `身份：${activeIdentity   || "未指定"}\n指令：${activePromptText || "未指定"}\n風格：${activeStyle     || "未指定"}\n----------\n內容：${content}`;
 
-      // 先清空輸入框（使用者看不到組合內容）
-      field.innerText = '';
-      field.dispatchEvent(new Event('input', { bubbles: true }));
+      // 用 execCommand 寫入組合內容，框架才能正確感知並啟用送出按鈕
+      setFieldValue(field, combined);
 
       setTimeout(() => {
-        // 將組合內容寫入後立即送出
-        field.innerText = combined;
-        field.dispatchEvent(new Event('input', { bubbles: true }));
-        setTimeout(() => {
-          const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
-          if (btn) { btn.click(); updateTagUI(); }
-        }, 300);
-      }, 50);
+        const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
+        if (btn) { btn.click(); updateTagUI(); }
+      }, 300);
     }
   }
 }, true);
