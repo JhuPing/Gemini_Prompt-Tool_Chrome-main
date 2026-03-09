@@ -283,8 +283,13 @@ document.addEventListener('keydown', (e) => {
       if (!content || content.includes('### 任務重置 ###')) return;
       e.preventDefault();
 
-      // 組合完整提示詞
-      const combined = `身份：${activeIdentity   || "未指定"}\n指令：${activePromptText || "未指定"}\n風格：${activeStyle     || "未指定"}\n----------\n內容：${content}`;
+      // 只組合有選擇的項目，並用自然語言格式
+      const parts = [];
+      if (activeIdentity)   parts.push(`你是一位${activeIdentity}。`);
+      if (activePromptText) parts.push(`請${activePromptText}。`);
+      if (activeStyle)      parts.push(`請以${activeStyle}的方式回應。`);
+      parts.push(content);
+      const combined = parts.join('\n\n');
 
       // 用 execCommand 寫入組合內容，框架才能正確感知並啟用送出按鈕
       setFieldValue(field, combined);
