@@ -254,14 +254,22 @@ function setFieldValue(field, text) {
 let isSubmitting = false;
 function autoSubmit(callback) {
   setTimeout(() => {
-    const btn = document.querySelector('button[aria-label="傳送訊息"], button[aria-label="Send message"], .send-button');
+    // 只用精確 aria-label，避免送出後點到「停止回覆」按鈕
+    const btn = document.querySelector('button[aria-label="傳送訊息"], button[aria-label="Send message"]');
     if (btn) {
       isSubmitting = true;
       btn.click();
+      // 送出後立即清空輸入框，避免合併內容殘留顯示
+      const field = document.querySelector('div[contenteditable="true"]');
+      if (field) {
+        field.focus();
+        document.execCommand('selectAll', false, null);
+        document.execCommand('delete', false, null);
+      }
       if (callback) callback();
-      setTimeout(() => { isSubmitting = false; }, 200);
+      setTimeout(() => { isSubmitting = false; }, 500);
     }
-  }, 100);
+  }, 150);
 }
 
 // ── 清除記憶 ──
