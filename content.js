@@ -132,6 +132,44 @@ function injectStyles() {
       .menu-item.selected .menu-item-text {
         color: rgba(255,255,255,0.85) !important;
       }
+      .ai-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 10px;
+        border-top: 1px solid #f1f3f4;
+      }
+      .ai-page-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid #dadce0;
+        background: #fff;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        color: #5f6368;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      .ai-page-btn:hover:not(:disabled) {
+        background: #f1f3f4;
+        color: ${cfg.activeBg};
+        border-color: ${cfg.activeBg};
+      }
+      .ai-page-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .ai-page-info {
+        font-size: 13px;
+        color: #5f6368;
+        min-width: 48px;
+        text-align: center;
+      }
     `;
   });
 }
@@ -191,15 +229,18 @@ function showSearchMenu(el) {
       <input type="text" class="ai-search-input" id="ai-search-input" placeholder="搜尋...">
     </div>
     <div class="ai-menu-list" id="ai-menu-list"></div>
+    <div class="ai-pagination" id="ai-pagination"></div>
   `;
   document.body.appendChild(menu);
   selectedIndex = 0;
+  currentPage = 0;
   document.getElementById('ai-search-input').oninput = (e) => {
     const q = e.target.value.toLowerCase();
     filteredSnippets = allSnippets.filter(s =>
       s.label.toLowerCase().includes(q) || s.text.toLowerCase().includes(q)
     );
     selectedIndex = 0;
+    currentPage = 0;
     renderList();
   };
   renderList();
@@ -212,18 +253,49 @@ function truncateDisplay(str, frontLen = 10, backLen = 10) {
   return str.slice(0, frontLen) + ' ... ' + str.slice(-backLen);
 }
 
+const PAGE_SIZE = 5;
+let currentPage = 0;
+
 function renderList() {
   const list = document.getElementById('ai-menu-list');
+  const pagination = document.getElementById('ai-pagination');
   if (!list) return;
-  list.innerHTML = filteredSnippets.map((s, i) =>
-    `<div class="menu-item ${i === selectedIndex ? 'selected' : ''}" data-idx="${i}">
+
+  const totalPages = Math.ceil(filteredSnippets.length / PAGE_SIZE);
+  // 確保 currentPage 不超出範圍
+  if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
+
+  const start = currentPage * PAGE_SIZE;
+  const pageItems = filteredSnippets.slice(start, start + PAGE_SIZE);
+
+  list.innerHTML = pageItems.map((s, i) => {
+    const globalIdx = start + i;
+    return `<div class="menu-item ${globalIdx === selectedIndex ? 'selected' : ''}" data-idx="${globalIdx}">
       <div class="menu-item-label">${truncateDisplay(s.label, 12, 8)}</div>
       <div class="menu-item-text">${truncateDisplay(s.text, 20, 15)}</div>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
+
   list.querySelectorAll('.menu-item').forEach(el => {
     el.onclick = () => selectItem(filteredSnippets[el.dataset.idx]);
   });
+
+  // 分頁導覽（只有超過一頁才顯示）
+  if (pagination) {
+    if (totalPages <= 1) {
+      pagination.innerHTML = '';
+      pagination.style.display = 'none';
+    } else {
+      pagination.style.display = 'flex';
+      pagination.innerHTML = `
+        <button class="ai-page-btn" id="ai-page-prev" ${currentPage === 0 ? 'disabled' : ''}>&#8249;</button>
+        <span class="ai-page-info">${currentPage + 1} / ${totalPages}</span>
+        <button class="ai-page-btn" id="ai-page-next" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>
+      `;
+      document.getElementById('ai-page-prev').onclick = () => { currentPage--; renderList(); };
+      document.getElementById('ai-page-next').onclick = () => { currentPage++; renderList(); };
+    }
+  }
 }
 
 function selectItem(selected) {
