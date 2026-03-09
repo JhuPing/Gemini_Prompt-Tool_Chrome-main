@@ -76,9 +76,13 @@ function renderTable() {
       <td><span class="cell-label">${item.label}</span></td>
       <td><div class="cell-text">${item.text}</div></td>
       <td style="text-align:right;">
+        <button class="btn-action-move" ${index === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn-action-move" ${index === items.length - 1 ? 'disabled' : ''}>↓</button>
         <button class="btn-action-edit">編輯</button>
         <button class="btn-action-del">刪除</button>
       </td>`;
+    tr.querySelectorAll('.btn-action-move')[0].onclick = () => moveItem(index, -1);
+    tr.querySelectorAll('.btn-action-move')[1].onclick = () => moveItem(index,  1);
     tr.querySelector('.btn-action-edit').onclick = () => openEditor(index);
     tr.querySelector('.btn-action-del').onclick  = () => deleteItem(index);
     tbody.appendChild(tr);
@@ -109,6 +113,14 @@ function deleteItem(index) {
     allData[currentType].splice(index, 1);
     chrome.storage.local.set({ [currentType]: allData[currentType] }, renderTable);
   }
+}
+
+function moveItem(index, direction) {
+  const items = allData[currentType];
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= items.length) return;
+  [items[index], items[newIndex]] = [items[newIndex], items[index]];
+  chrome.storage.local.set({ [currentType]: items }, renderTable);
 }
 
 // ── 外觀預覽 ──
