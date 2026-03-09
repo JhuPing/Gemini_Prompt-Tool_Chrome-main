@@ -275,12 +275,23 @@ document.addEventListener('keydown', (e) => {
       const content = field.innerText.trim();
       if (!content || content.includes('### 任務重置 ###')) return;
       e.preventDefault();
-      field.innerText = `身份：${activeIdentity   || "未指定"}\n指令：${activePromptText || "未指定"}\n風格：${activeStyle     || "未指定"}\n----------\n內容：${content}`;
+
+      // 組合完整提示詞
+      const combined = `身份：${activeIdentity   || "未指定"}\n指令：${activePromptText || "未指定"}\n風格：${activeStyle     || "未指定"}\n----------\n內容：${content}`;
+
+      // 先清空輸入框（使用者看不到組合內容）
+      field.innerText = '';
       field.dispatchEvent(new Event('input', { bubbles: true }));
+
       setTimeout(() => {
-        const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
-        if (btn) { btn.click(); updateTagUI(); }
-      }, 300);
+        // 將組合內容寫入後立即送出
+        field.innerText = combined;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        setTimeout(() => {
+          const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
+          if (btn) { btn.click(); updateTagUI(); }
+        }, 300);
+      }, 50);
     }
   }
 }, true);
