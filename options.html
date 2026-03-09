@@ -104,7 +104,7 @@
     .card-body { padding: 0; }
 
     /* ── Table ── */
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    table { width: 100%; border-collapse: collapse; table-layout: auto; }
     thead { background: #f7f9fc; }
     th {
       padding: 14px 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.8px;
@@ -117,11 +117,11 @@
     }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #fafbfc; }
-    th:nth-child(1), td:nth-child(1) { width: 20%; }
-    th:nth-child(2), td:nth-child(2) { width: 55%; }
-    th:nth-child(3), td:nth-child(3) { width: 25%; text-align: right; }
+    th:nth-child(1), td:nth-child(1) { width: 18%; }
+    th:nth-child(2), td:nth-child(2) { width: auto; }
+    th:nth-child(3), td:nth-child(3) { width: 1%; white-space: nowrap; text-align: right; }
     .cell-label { font-weight: 600; font-size: 15px; }
-    .cell-text  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: 14px; }
+    .cell-text  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: 14px; max-width: 0; }
 
     /* ── Buttons ── */
     button {
