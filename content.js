@@ -150,9 +150,9 @@ function updateTagUI() {
   }
 
   const slots = [
-    { key: 'identities', display: activeIdentityLabel ? `身份：${activeIdentityLabel}` : '設定身份', val: activeIdentity },
-    { key: 'events',     display: activePromptLabel   ? `指令：${activePromptLabel}`   : '設定指令', val: activePromptText },
-    { key: 'styles',     display: activeStyleLabel    ? `風格：${activeStyleLabel}`    : '設定風格', val: activeStyle }
+    { key: 'identities', display: activeIdentityLabel ? `身份：${activeIdentityLabel}` : '身份：未選擇', val: activeIdentity },
+    { key: 'events',     display: activePromptLabel   ? `指令：${activePromptLabel}`   : '指令：未選擇', val: activePromptText },
+    { key: 'styles',     display: activeStyleLabel    ? `風格：${activeStyleLabel}`    : '風格：未選擇', val: activeStyle }
   ];
 
   container.innerHTML = slots.map(s =>
@@ -240,11 +240,15 @@ function clearSlot(type) {
 function resetGeminiContext() {
   const input = document.querySelector('div[contenteditable="true"]');
   if (input) {
-    input.innerText = `### 任務重置 ###\n請清除目前的上下文。接下來我將提供新的主題，請僅根據新提供的資料進行回覆。`;
+    // 先清空所有已選擇的狀態
     activeIdentity = ""; activeIdentityLabel = "";
     activePromptText = ""; activePromptLabel = "";
     activeStyle = ""; activeStyleLabel = "";
     updateTagUI();
+    // 寫入重置指令後直接送出
+    input.innerText = `### 任務重置 ###\n請清除目前的上下文。接下來我將提供新的主題，請僅根據新提供的資料進行回覆。`;
+    // 觸發 input 事件讓 Gemini 偵測到內容變更，再送出
+    input.dispatchEvent(new Event('input', { bubbles: true }));
     setTimeout(() => {
       const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
       if (btn) btn.click();
