@@ -269,9 +269,14 @@ function resetGeminiContext() {
   }, 300);
 }
 
+// ── IME 組字狀態偵測（避免攔截中文注音/拼音確認的 Enter）──
+let isComposing = false;
+document.addEventListener('compositionstart', () => { isComposing = true; });
+document.addEventListener('compositionend',   () => { isComposing = false; });
+
 // ── Enter 鍵送出 ──
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey && !menu) {
+  if (e.key === 'Enter' && !e.shiftKey && !menu && !isComposing) {
     const field = e.target;
     if (field.isContentEditable && (activeIdentity || activePromptText || activeStyle)) {
       const content = field.innerText.trim();
