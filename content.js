@@ -325,13 +325,16 @@ function setFieldValue(field, text) {
 // ── 自動提交 ──
 let isSubmitting = false;
 function autoSubmit(callback) {
+  // 等框架感知 setFieldValue 的內容變更後再送出（250ms 比 150ms 更穩）
   setTimeout(() => {
-    // 只用精確 aria-label，避免送出後點到「停止回覆」按鈕
-    const btn = document.querySelector('button[aria-label="傳送訊息"], button[aria-label="Send message"]');
-    if (btn) {
+    // 涵蓋繁中、簡中、英文、日文等不同語系的 aria-label
+    const btn = document.querySelector(
+      'button[aria-label="傳送訊息"], button[aria-label="Send message"], button[aria-label="发送消息"], button[aria-label="送信"]'
+    );
+    if (btn && !btn.disabled) {
       isSubmitting = true;
       btn.click();
-      // 送出後立即清空輸入框，避免合併內容殘留顯示
+      // 送出後清空輸入框，避免合併內容殘留顯示
       const field = document.querySelector('div[contenteditable="true"]');
       if (field) {
         field.focus();
@@ -340,8 +343,21 @@ function autoSubmit(callback) {
       }
       if (callback) callback();
       setTimeout(() => { isSubmitting = false; }, 500);
+    } else {
+      // 找不到按鈕或按鈕仍 disabled：fallback 用 Enter 事件觸發
+      const field = document.querySelector('div[contenteditable="true"]');
+      if (field) {
+        field.focus();
+        const enterDown = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
+        const enterUp   = new KeyboardEvent('keyup',   { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
+        isSubmitting = true;
+        field.dispatchEvent(enterDown);
+        field.dispatchEvent(enterUp);
+        if (callback) callback();
+        setTimeout(() => { isSubmitting = false; }, 500);
+      }
     }
-  }, 150);
+  }, 250);
 }
 
 // ── 清除記憶 ──
