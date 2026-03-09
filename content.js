@@ -292,8 +292,8 @@ function renderList() {
         <span class="ai-page-info">${currentPage + 1} / ${totalPages}</span>
         <button class="ai-page-btn" id="ai-page-next" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>
       `;
-      document.getElementById('ai-page-prev').onclick = () => { currentPage--; renderList(); };
-      document.getElementById('ai-page-next').onclick = () => { currentPage++; renderList(); };
+      document.getElementById('ai-page-prev').onclick = (e) => { e.stopPropagation(); currentPage--; renderList(); };
+      document.getElementById('ai-page-next').onclick = (e) => { e.stopPropagation(); currentPage++; renderList(); };
     }
   }
 }
