@@ -250,6 +250,20 @@ function setFieldValue(field, text) {
   document.execCommand('insertText', false, text);
 }
 
+// ── 等待送出按鈕可用後點擊 ──
+function waitAndSubmit(callback) {
+  let attempts = 0;
+  const timer = setInterval(() => {
+    const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
+    if (btn && !btn.disabled) {
+      clearInterval(timer);
+      btn.click();
+      if (callback) callback();
+    }
+    if (++attempts > 20) clearInterval(timer); // 最多等 2 秒
+  }, 100);
+}
+
 // ── 清除記憶 ──
 function resetGeminiContext() {
   const input = document.querySelector('div[contenteditable="true"]');
@@ -261,12 +275,9 @@ function resetGeminiContext() {
   activeStyle = ""; activeStyleLabel = "";
   updateTagUI();
 
-  // 寫入重置指令後自動送出
+  // 寫入重置指令後等按鈕可用再送出
   setFieldValue(input, '### 任務重置 ### 請清除目前的上下文。接下來我將提供新的主題，請僅根據新提供的資料進行回覆。');
-  setTimeout(() => {
-    const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
-    if (btn) btn.click();
-  }, 300);
+  waitAndSubmit();
 }
 
 // ── IME 組字狀態偵測（避免攔截中文注音/拼音確認的 Enter）──
@@ -293,11 +304,7 @@ document.addEventListener('keydown', (e) => {
 
       // 用 execCommand 寫入組合內容，框架才能正確感知並啟用送出按鈕
       setFieldValue(field, combined);
-
-      setTimeout(() => {
-        const btn = document.querySelector('button[aria-label*="發送"], button[aria-label*="Send"]');
-        if (btn) { btn.click(); updateTagUI(); }
-      }, 300);
+      waitAndSubmit(updateTagUI);
     }
   }
 }, true);
